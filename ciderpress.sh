@@ -371,11 +371,16 @@ if [[ $backup_trimming == "1" ]]; then
 	print_status "setting up backup trim automation.."
 	cp $execdir/bkup_trimmer /root/adm_scripts/bkup_trimmer &>> $logfile
 	chmod 700 /root/adm_scripts/bkup_trimmer &>> $logfile
-	error_check "#updater script installation" >> /etc/crontab
+	error_check "backup trim script installation" >> /etc/crontab
 	echo "#backup trim automation. installed via ciderpress.sh. remove the line below to disable this" >> /etc/crontab
 	echo "0 6    * * 1   root    /bin/bash /root/adm_scripts/bk_trimmer" >> /etc/crontab
 	grep bkup_trimmer /etc/crontab &>> $logfile
 	error_check 'backup trim cron job addition'
 else
-	print_notification "skipping update automation"
+	print_notification "skipping backup trim automation"
 fi
+
+print_notification "We done here. I'd highly recommend either deleting or storing the ciderpress.conf file in a safe, secure location, since a lot of important details are stored in this file."
+print_status "Rebooting."
+init 6
+exit 0
