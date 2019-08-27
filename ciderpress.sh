@@ -332,6 +332,7 @@ else
 	error_check 'crontab backup'
 fi
 
+#sets up update automation, and configures the job to run at 5am weekly on monday.
 if [[ $update_automation == "1" ]]; then
 	print_status "setting up update automation.."
 	cp $execdir/updater /root/adm_scripts/updater &>> $logfile
@@ -345,9 +346,14 @@ else
 	print_notification "skipping update automation"
 fi
 
+#Sets up automated backups. this script will backup the wordpress installation directory and the wordpress database (via mysqldump as root -- doesn't need creds, which is neat), then make a tarball in /opt/bkup
+#We then delete the db dump and copied wordpress directory. /opt/wp_backup is restricted to the root user only, and the database backups can only be read by the root user. 
+#Each backup has the date the backup was ran in the filename.
 if [[ $backup_automation == "1" ]]; then
 	print_status "setting up backup automation.."
 	cp $execdir/wp_backup /root/adm_scripts/wp_backup &>> $logfile
+	sed -i "s#\$wp_basedir#$wp_basedir#" /root/adm_scripts/wp_backup
+	sed -i "s#\$wp_database_name#$wp_database_name#" /root/adm_scripts/wp_backup
 	chmod 700 /root/adm_scripts/wp_backup &>> $logfile
 	error_check "backup script installation" >> /etc/crontab
 	dir_check /opt/bkups
@@ -360,14 +366,15 @@ else
 	print_notification "skipping backup automation"
 fi
 
+#sets up automated backup trimming. This script is running find against /opt/bkups
 if [[ $backup_trimming == "1" ]]; then
 	print_status "setting up backup trim automation.."
 	cp $execdir/bkup_trimmer /root/adm_scripts/bkup_trimmer &>> $logfile
 	chmod 700 /root/adm_scripts/bkup_trimmer &>> $logfile
 	error_check "#updater script installation" >> /etc/crontab
 	echo "#backup trim automation. installed via ciderpress.sh. remove the line below to disable this" >> /etc/crontab
-	echo "0 6    * * 1   root    /bin/bash /root/adm_scripts/updater" >> /etc/crontab
-	grep updater /etc/crontab &>> $logfile
+	echo "0 6    * * 1   root    /bin/bash /root/adm_scripts/bk_trimmer" >> /etc/crontab
+	grep bkup_trimmer /etc/crontab &>> $logfile
 	error_check 'backup trim cron job addition'
 else
 	print_notification "skipping update automation"
