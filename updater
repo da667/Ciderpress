@@ -1,0 +1,9 @@
+#!/bin/bash
+#updater - system update script
+#update, log that the update was done, reboot"
+export DEBIAN_FRONTEND=noninteractive
+apt-get -q update
+apt-get -y -q dist-upgrade
+logger "updater ran successfully. rebooting system"
+init 6
+exit 0

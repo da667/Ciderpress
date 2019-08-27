@@ -1,0 +1,17 @@
+#!/bin/bash
+#This is a script designed to backup wordpress' files and database.
+#Notice that this script requires creds to perform the sqldump.
+#The script also stores the wordpress settings file, which (should) have these same creds
+#Ensure that minimum file permissions (600) are on this file to ensure
+#database creds are NOT leaked in the event of a system compromise.
+#The way the script is run, only root should have access to the backup archive in question.
+curdate=`date +%F`
+
+cd /opt/bkups
+mysqldump -uroot $wp_database_name > wordpress-bkup-$curdate.sql
+cp -r $wp_basedir wordpress-$curdate
+tar -cjvf wordpress-bkup-$curdate.tar.bz2 wordpress-bkup-$curdate.sql wordpress-$curdate
+chmod 600 wordpress-bkup-$curdate.tar.bz2
+rm -rf wordpress-bkup-$curdate.sql wordpress-$curdate
+logger "Weekly wordpress backup completed! File Size:`du -h /opt/bkups/wordpress/wordpress-bkup-$curdate.tar.bz2 | awk '{print $1}'`"
+exit 0

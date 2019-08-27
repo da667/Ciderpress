@@ -1,0 +1,121 @@
+#This is a site config for ciderpress.sh, the hardened wordpress installation script. Yeet.
+#The first server block here establishes a listener on port 80 whose only purpose is to force redirection to HTTPS.
+#note the use of the wp_basedir and wp_hostname variables below. You need to set this variables in ciderpress.conf for them to get customized to your install.
+
+server {
+	listen 80 default_server;
+	listen [::]:80 default_server;
+	server_name $wp_hostname;
+	##Auto-redirect to HTTPS site##
+	rewrite ^ https://$server_name$request_uri? permanent;
+}
+
+#This server block is where all the fun begins.
+#All of the SSL configurations here are directly copied from cipherli.st. This means that these config settings are considered "best practice".
+#If you follow the SSL configs here, your sites encryption will be strong.
+#Q: You're using the cipherli.st config for nginx, but why don't you have the resolver directive set?
+#A: the resolver will default to using whatever DNS resolver the server is configured to use.
+#I don't see a point in overriding the configured DNS server just for stapling.
+
+server {
+    #set the server name and mark it as SSL only.
+    listen 443 ssl;
+	isten [::]:443
+    server_name $wp_hostname;
+    
+	ssl_protocols TLSv1.3;# Requires nginx >= 1.13.0 else use TLSv1.2
+	ssl_prefer_server_ciphers on; 
+	ssl_dhparam /etc/nginx/ssl/dhparam.pem; # openssl dhparam -out /etc/nginx/dhparam.pem 4096
+	ssl_ciphers EECDH+AESGCM:EDH+AESGCM;
+	ssl_ecdh_curve secp384r1;
+	ssl_session_timeout  10m;
+	ssl_session_cache shared:SSL:10m;
+	ssl_session_tickets off;
+	ssl_stapling on;
+	ssl_stapling_verify on;
+	add_header Strict-Transport-Security "max-age=63072000; includeSubDomains; preload";
+	add_header X-Frame-Options DENY;
+	add_header X-Content-Type-Options nosniff;
+	add_header X-XSS-Protection "1; mode=block";
+
+	#declare maximum size for a file upload. setting this to 10M, which is usually enough to work with most images.
+	#reminder: /etc/php/7.X/fpm/php.ini needs to have its upload_max_filesize, and post_max_size set for this to work.
+	#note: if you want to apply this server-wide, you can set it in nginx.conf in the http{} block.
+	
+	client_max_body_size $max_upload;
+
+    #declare document root and possible index files.
+    
+	root $wp_basedir;
+    index index.php;
+	
+	#turn off directory indexes
+	autoindex off;
+	
+	#location directive that says "If the user is requesting a file that doesn't exist or they aren't allowed to access, redirect them to index.php"
+	
+	location / {
+		if (!-e $request_filename) {
+			rewrite ^.*? /index.php last;
+         }
+    }
+	
+	#location directive for processing php files. 
+	
+	location ~ \.php$ {
+		try_files $uri =404;
+		include snippets/fastcgi-php.conf
+		include fastcgi_params;
+		fastcgi_pass /run/php/php$phpver-fpm.sock;
+		fastcgi_param HTTPS on;
+		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+		fastcgi_intercept_errors on;
+	}
+	
+	#location directive for image and CSS files to ensure that they are cached for the maximum amount of time possible.
+	location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+		expires max;
+	}
+	
+	#deny access to wordpress admin functions except from trusted networks/hosts
+	location ~* /wp-admin {
+		try_files $uri $uri/ =404;
+		allow $admin_net;
+		deny all;
+	}
+	
+	#deny CGI to other script types that wordpress does not utilize to function
+	location ~* \.(pl|cgi|py|rb|sh|lua)\$ {
+			return 444;
+		}
+
+	#Other things to disallow: 
+	#anyone specifically requesting any file beginning with a period ("."), wp-config.php, license.txt, readme.html, xmlrpc.php, or wp-trackback.php
+	#anyone attempting to access wp-admin/includes wp-includes/theme-compat/, wp-includes/js/tinymce/langs/*.php, /wp-json, wp-includes/*.php
+	#set the wp-includes and wp-content directories for internal server use only.
+	
+	location ~ /(\.|wp-config.php|readme.html|license.txt|xmlrpc.php|wp-trackback.php) { deny all; }
+	
+	location ~ ~$ { deny all; }
+	
+	location ~* wp-admin/includes { deny all; }
+	
+	location ~* wp-includes/theme-compat/ { deny all; }
+	
+	location ~* wp-includes/js/tinymce/langs/.*\.php { deny all; }
+	
+	location ~* /wp-json { deny all }
+	
+	location ~* wp-includes/.*\.php$ { deny all; }
+	
+	location ~* /wp-includes/ { internal; }
+	
+	location /wp-content/ { internal; }
+
+	#this location block prevents access to common file extensions uploaded for backdoors/malware, and sets their mime type to text/plain.
+	
+	location ~* ^/wp-content/uploads/.*.(html|htm|shtm|php|pl|py|pyc|jsp|asp|cgi|rb|sh|swf|lua)$ {
+		types { }
+		default_type text/plain;
+	}
+}

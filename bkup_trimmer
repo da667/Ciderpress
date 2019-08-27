@@ -1,0 +1,6 @@
+#!/bin/bash
+#This is a simple backup trimming script. It is designed to find and remove any backup files older than 90 days (3 months.)
+#This should be ran once weekly via crontab
+find /opt/bkups/ -type f -mtime +90 -delete
+logger "Backup trimmer has run successfully. All backups older than 90 days have been purged."
+exit 0
