@@ -100,3 +100,4 @@ wordpress plugin hardening: https://ted.do/category/wordpress/
 more wordpress plugin hardening: https://wp-mix.com/wordpress-disable-rest-api-header-links/
 SSH dynamic tunnels/SOCKS5 proxying on Linux/Unix systems: https://www.tecmint.com/create-ssh-tunneling-port-forwarding-in-linux/ 
 SSH dynamic tunnels/SOCKS5 proxying with putty: https://blog.devolutions.net/2017/4/how-to-configure-an-ssh-tunnel-on-putty
+Are you wondering why we installed rng-tools? Its because it significantly improves RNG collection on VMs, and makes the dhparam.pem generation significantly faster on virtual machines: https://www.cyberciti.biz/open-source/debian-ubuntu-centos-linux-setup-additional-entropy-for-server-using-aveged-rng-tools-utils/
