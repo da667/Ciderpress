@@ -78,7 +78,7 @@ Personal preference, mainly.
 	* If configured, these scripts are added to /etc/crontab
 		* `updater` runs at 5am
 		* `wp_bkup` runs at 5:30am
-		* `bkup_trimmer` runs at 6:30am
+		* `bkup_trimmer` runs at 6:00am
 		* If these times are NOT agreeable, edit /etc/crontab to suit your needs (Check out https://crontab.guru to test your crontab edits)
 
 ## Instructions for use:
