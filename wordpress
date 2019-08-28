@@ -4,7 +4,6 @@
 
 server {
 	listen 80 default_server;
-	listen [::]:80 default_server;
 	server_name $wp_hostname;
 	##Auto-redirect to HTTPS site##
 	rewrite ^ https://$server_name$request_uri? permanent;
@@ -20,11 +19,12 @@ server {
 server {
     #set the server name and mark it as SSL only.
     listen 443 ssl;
-	isten [::]:443
     server_name $wp_hostname;
     
-	ssl_protocols TLSv1.3;# Requires nginx >= 1.13.0 else use TLSv1.2
-	ssl_prefer_server_ciphers on; 
+	ssl_protocols TLSv1.3;
+	ssl_prefer_server_ciphers on;
+	ssl_certificate /etc/nginx/ssl/cert.pem;
+	ssl_certificate_key /etc/nginx/ssl/key.pem;
 	ssl_dhparam /etc/nginx/ssl/dhparam.pem;
 	ssl_ciphers EECDH+AESGCM:EDH+AESGCM;
 	ssl_ecdh_curve secp384r1;
@@ -63,10 +63,9 @@ server {
 	#location directive for processing php files. 
 	
 	location ~ \.php$ {
-		try_files $uri =404;
-		include snippets/fastcgi-php.conf
+		include snippets/fastcgi-php.conf;
 		include fastcgi_params;
-		fastcgi_pass /run/php/php$phpver-fpm.sock;
+		fastcgi_pass unix:/run/php/php$phpver-fpm.sock;
 		fastcgi_param HTTPS on;
 		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
 		fastcgi_intercept_errors on;
@@ -78,11 +77,25 @@ server {
 	}
 	
 	#deny access to wordpress admin functions except from trusted networks/hosts
-	location ~* /wp-admin {
+	location /wp-admin {
 		try_files $uri $uri/ =404;
-		allow $admin_net;
-		deny all;
-	}
+        location ~ \.php$ {
+			include snippets/fastcgi-php.conf;
+            include fastcgi_params;
+            fastcgi_pass unix:/run/php/php7.2-fpm.sock;
+            fastcgi_param HTTPS on;
+            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+            fastcgi_intercept_errors on;
+        }
+                allow $admin_net;
+                deny all;
+    }
+
+#	location ~* /wp-admin {
+#		try_files $uri $uri/ =404;
+#		allow $admin_net;
+#		deny all;
+#	}
 	
 	#deny CGI to other script types that wordpress does not utilize to function
 	location ~* \.(pl|cgi|py|rb|sh|lua)\$ {
@@ -104,7 +117,7 @@ server {
 	
 	location ~* wp-includes/js/tinymce/langs/.*\.php { deny all; }
 	
-	location ~* /wp-json { deny all }
+	location ~* /wp-json { deny all; }
 	
 	location ~* wp-includes/.*\.php$ { deny all; }
 	

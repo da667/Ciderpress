@@ -211,11 +211,16 @@ print_status "Configuring SSL.."
 dir_check /etc/nginx/ssl
 chmod 700 /etc/nginx/ssl
 
-print_status "Generating dhparam.pem.."
-print_notification "This is going to take some time. On my VM on a modern server, this took about 5 minutes. Your results could be faster or slower, depending on hardware."
-print_notification "If you want to check progress, open another terminal session and run the command tail -f /var/log/ciderpress_install.log"
-openssl dhparam -out /etc/nginx/ssl/dhparam.pem 4096 &>> $logfile
-error_check 'dhparam.pem file creation'
+#added an if check. if dhparam.pem exists, we don't want to regenerate it, because it takes a lot of time and CPU to do so for essentially no reason.
+if [ -f /etc/nginx/ssl/dhparam.pem ]; then
+	print_notification "dhparam.pem already generated. Not wasting CPU cycles regenerating it"	
+else
+	print_status "Generating dhparam.pem.."
+	print_notification "This is going to take some time. On my VM on a modern server, this took about 15 minutes. Your results could be faster or slower, depending on hardware."
+	print_notification "If you want to check progress, open another terminal session and run the command tail -f /var/log/ciderpress_install.log"
+	openssl dhparam -out /etc/nginx/ssl/dhparam.pem 4096 &>> $logfile
+	error_check 'dhparam.pem file creation'
+fi
 
 if [[ $use_letsencrypt == "1" ]]; then
 	print_status "Downloading, installing, and executing letsencrypt ACME bash client.."
@@ -279,8 +284,9 @@ rm -rf latest.tar.gz &>> $logfile
 
 #Have to modify and configure the wp-config-sample.php file. Here is what needs to be done:
 #Enter the username, password, and database name for the mysql database wordpress will be dumping its schema to
-#Grabbing some RNG keys and salts via https://api.wordpress.org/secret-key/1.1/salt/ 
 #adding an option to explicitly ensure that both minor and major core wordpress updates are automatically installed
+#adding in a directive that says if the remote ip address is 127.0.0.1, then the site url and home url is 127.0.0.1
+#this is to fix the fact that wordpress likes to redirect to the public IP address/hostname after logging in.
 #afterwards. we change file permissions to where only www-data user and group can access the wp-config.php file
 
 print_status "Setting up wp-config for first-time use.."
@@ -291,6 +297,11 @@ sed -i "s#username_here#$wp_db_user#" $wp_basedir/wp-config.php.tmp &>> $logfile
 sed -i "s#password_here#$wp_mysql_password#" $wp_basedir/wp-config.php.tmp &>> $logfile
 echo "//ensuring that wordpress core major and minor updates are AUTOMATICALLY installed" >> $wp_basedir/wp-config.php.tmp
 echo "define( 'WP_AUTO_UPDATE_CORE', true);" >> $wp_basedir/wp-config.php.tmp
+echo "//this is to ensure access to wp-login.php and wp-admin.php if uses stick with the default setting of only allowing localhost to access these directories." >> $wp_basedir/wp-config.php.tmp
+echo "if ($_SERVER['REMOTE_ADDR'] == '127.0.0.1' || $_SERVER['REMOTE_ADDR'] == '::1') {" >> $wp_basedir/wp-config.php.tmp
+echo "    define('WP_SITEURL', 'https://127.0.0.1/');" >> $wp_basedir/wp-config.php.tmp
+echo "    define('WP_HOME', 'https://127.0.0.1/');" >> $wp_basedir/wp-config.php.tmp
+echo "}" >> $wp_basedir/wp-config.php.tmp
 mv $wp_basedir/wp-config.php.tmp $wp_basedir/wp-config.php &>> $logfile
 chmod 660 $wp_basedir/wp-config.php &>> $logfile
 error_check 'wp-config.php setup'
@@ -337,7 +348,7 @@ if [[ $update_automation == "1" ]]; then
 	print_status "setting up update automation.."
 	cp $execdir/updater /root/adm_scripts/updater &>> $logfile
 	chmod 700 /root/adm_scripts/updater &>> $logfile
-	error_check "update script installation" >> /etc/crontab
+	error_check 'update script installation'
 	echo "#update automation. installed via ciderpress.sh. remove the line below to disable this" >> /etc/crontab
 	echo "0 5    * * 1   root    /bin/bash /root/adm_scripts/updater" >> /etc/crontab
 	grep updater /etc/crontab &>> $logfile
@@ -351,16 +362,16 @@ fi
 #Each backup has the date the backup was ran in the filename.
 if [[ $backup_automation == "1" ]]; then
 	print_status "setting up backup automation.."
-	cp $execdir/wp_backup /root/adm_scripts/wp_backup &>> $logfile
-	sed -i "s#\$wp_basedir#$wp_basedir#" /root/adm_scripts/wp_backup
-	sed -i "s#\$wp_database_name#$wp_database_name#" /root/adm_scripts/wp_backup
-	chmod 700 /root/adm_scripts/wp_backup &>> $logfile
-	error_check "backup script installation" >> /etc/crontab
+	cp $execdir/wp_bkup /root/adm_scripts/wp_bkup &>> $logfile
+	sed -i "s#\$wp_basedir#$wp_basedir#" /root/adm_scripts/wp_bkup &>> $logfile
+	sed -i "s#\$wp_database_name#$wp_database_name#" /root/adm_scripts/wp_bkup &>> $logfile
+	chmod 700 /root/adm_scripts/wp_bkup &>> $logfile
+	error_check 'backup script installation'
 	dir_check /opt/bkups
 	chmod 700 /opt/bkups
 	echo "#backup automation. installed via ciderpress.sh. remove the line below to disable this" >> /etc/crontab
-	echo "30 5    * * 1   root    /bin/bash /root/adm_scripts/wp_backup" >> /etc/crontab
-	grep wp_backup /etc/crontab &>> $logfile
+	echo "30 5    * * 1   root    /bin/bash /root/adm_scripts/wp_bkup" >> /etc/crontab
+	grep wp_bkup /etc/crontab &>> $logfile
 	error_check 'backup automation cron job addition'
 else
 	print_notification "skipping backup automation"
@@ -371,9 +382,9 @@ if [[ $backup_trimming == "1" ]]; then
 	print_status "setting up backup trim automation.."
 	cp $execdir/bkup_trimmer /root/adm_scripts/bkup_trimmer &>> $logfile
 	chmod 700 /root/adm_scripts/bkup_trimmer &>> $logfile
-	error_check "backup trim script installation" >> /etc/crontab
+	error_check 'backup trim script installation'
 	echo "#backup trim automation. installed via ciderpress.sh. remove the line below to disable this" >> /etc/crontab
-	echo "0 6    * * 1   root    /bin/bash /root/adm_scripts/bk_trimmer" >> /etc/crontab
+	echo "0 6    * * 1   root    /bin/bash /root/adm_scripts/bkup_trimmer" >> /etc/crontab
 	grep bkup_trimmer /etc/crontab &>> $logfile
 	error_check 'backup trim cron job addition'
 else

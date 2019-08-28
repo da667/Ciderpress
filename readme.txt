@@ -88,6 +88,9 @@ Set 127.0.0.1:8080 as your browser's SOCKS5 proxy, connect to https://127.0.0.1 
 
 4. bash ciderpress.sh or sudo bash ciderpress.sh should be enough to get the ball rolling
 
+4A: theres a portion of the script that generates a dhparam.pem file. The script warns you that it'll take some time to do. Its no joke. Its gonna take about 15 or so minutes on a moderately powerful system.
+If you wanna make sure that the script is still running, open up another terminal session (e.g. second SSH session, etc.) and run the command tail -f /var/log/ciderpress_install.log
+
 5. Your system WILL reboot as a part of this script.
 
 Resources/References used to build this script: 
@@ -98,6 +101,9 @@ Nginx wordpress hardening: http://blog.bigdinosaur.org/wordpress-on-nginx/
 Additional nginx hardening configs: https://gist.github.com/julienbourdeau/a39acf5862600318bdd0
 wordpress plugin hardening: https://ted.do/category/wordpress/
 more wordpress plugin hardening: https://wp-mix.com/wordpress-disable-rest-api-header-links/
+enforcing auto updates, even on major releases, themes and plugins: https://wordpress.org/support/article/configuring-automatic-background-updates/
 SSH dynamic tunnels/SOCKS5 proxying on Linux/Unix systems: https://www.tecmint.com/create-ssh-tunneling-port-forwarding-in-linux/ 
 SSH dynamic tunnels/SOCKS5 proxying with putty: https://blog.devolutions.net/2017/4/how-to-configure-an-ssh-tunnel-on-putty
+Access wp-admin via localhost/dynamic SSH tunnel: https://wordpress.stackexchange.com/questions/186272/how-to-deal-with-wordpress-on-localhost
 Are you wondering why we installed rng-tools? Its because it significantly improves RNG collection on VMs, and makes the dhparam.pem generation significantly faster on virtual machines: https://www.cyberciti.biz/open-source/debian-ubuntu-centos-linux-setup-additional-entropy-for-server-using-aveged-rng-tools-utils/
+Why didn't we generate salts and keys in wp-config.php? Because wordpress will generate them on its own on first setup.

@@ -13,5 +13,5 @@ cp -r $wp_basedir wordpress-$curdate
 tar -cjvf wordpress-bkup-$curdate.tar.bz2 wordpress-bkup-$curdate.sql wordpress-$curdate
 chmod 600 wordpress-bkup-$curdate.tar.bz2
 rm -rf wordpress-bkup-$curdate.sql wordpress-$curdate
-logger "Weekly wordpress backup completed! File Size:`du -h /opt/bkups/wordpress/wordpress-bkup-$curdate.tar.bz2 | awk '{print $1}'`"
+logger "Weekly wordpress backup completed! File Size:`du -h /opt/bkups/wordpress-bkup-$curdate.tar.bz2 | awk '{print $1}'`"
 exit 0
