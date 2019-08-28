@@ -46,6 +46,7 @@ Personal preference, mainly.
 	* readme.html
 	* wp-trackback.php
 	* xmlrpc.php
+	* wp-cron.php
 	* any file beginning with a period (.)
 	* any file beginning with dollar sign ($)
 	* /wp-json
@@ -106,6 +107,7 @@ Set 127.0.0.1:8080 as your browser's SOCKS5 proxy, connect to https://127.0.0.1 
 4. `bash ciderpress.sh` or `sudo bash ciderpress.sh` should be enough to get the ball rolling. The script keeps a log of the output of all the commands it runs in /var/log/ciderpress_install.log. This file can be used to help troubleshoot failures if the script bombs out.
 	1. theres a portion of the script that generates a `dhparam.pem` file. The script warns you that it'll take some time to do. Its no joke. Its gonna take about 15 or so minutes on a moderately powerful system, and the CPU is gonna kick and scream the entire time. If you wanna make sure that the script is still running, open up another terminal session (e.g. second SSH session, etc.) and run the command tail -f /var/log/ciderpress_install.log
 5. Your system WILL reboot as a part of this script.
+	1. Please be aware that after going through wp-admin/install.php, you'll need to visit the wordpress dashboard and activate the ciderpress plugin manually
 
 ## References:
 * Suppress nginx version info: https://www.tecmint.com/hide-nginx-server-version-in-linux/  

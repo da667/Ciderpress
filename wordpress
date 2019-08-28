@@ -107,7 +107,7 @@ server {
 	#anyone attempting to access wp-admin/includes wp-includes/theme-compat/, wp-includes/js/tinymce/langs/*.php, /wp-json, wp-includes/*.php
 	#set the wp-includes and wp-content directories for internal server use only.
 	
-	location ~ /(\.|wp-config.php|readme.html|license.txt|xmlrpc.php|wp-trackback.php) { deny all; }
+	location ~ /(\.|wp-config.php|readme.html|license.txt|xmlrpc.php|wp-trackback.php|wp-cron.php) { deny all; }
 	
 	location ~ ~$ { deny all; }
 	
