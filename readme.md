@@ -115,7 +115,7 @@ Freenom offers free hostnames for up to a year for a few TLDs. I have no idea if
 
 ## Patch Notes:
 ### 2019-08-30
-* Decided that attempting to blog access to wp-admin via IP address wasn't the way forward(tm). As in, I thought it worked fine, but it was one of those "Works great on my machine!" moments they tell you about in cyber school. You don't think it'll happen until it happens to you.  
+* Decided that attempting to block access to wp-admin via IP address wasn't the way forward(tm). As in, I thought it worked fine, but it was one of those "Works great on my machine!" moments they tell you about in cyber school. You don't think it'll happen until it happens to you.  
 * `wp-cli` is a thing that exists and is insanely useful for handling various aspects of installing and configuring wordpress. I've switched the script over to using wp-cli to download, install, perform initial configuration, enable and install plugins as a part of the script  
 * wp-cli gets installed as /usr/sbin/wp. Be aware: if you use wp to install themes/plugins/make changes, you'll likely be doing it as root or via sudo.
 	* in order to run wp-cli commands as root, you need to add the option `--allow-root` in order for it to run without puking. You also need to run wp-cli from the directory you installed wordpress to (`wp_basedir`)
