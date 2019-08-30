@@ -118,7 +118,7 @@ Freenom offers free hostnames for up to a year for a few TLDs. I have no idea if
 * `wp-cli` is a thing that exists and is insanely useful for handling various aspects of installing and configuring wordpress. I've switched the script over to using wp-cli to download, install, perform initial configuration, enable and install plugins as a part of the script  
 * wp-cli gets installed as /usr/sbin/wp. Be aware: if you use wp to install themes/plugins/make changes, you'll likely be doing it as root or via sudo.
 	* in order to run wp-cli commands as root, you need to add the option `--allow-root` in order for it to run without puking. You also need to run wp-cli from the directory you installed wordpress to (`wp_basedir`)
-	* if you install/add/modify things with the wp-cli (`/usr/sbin/wp`) make sure you run the command `[sudo] chown -R www-data:www-data /path/to/wordpress otherwise you'll probably get file permission errors everywhere.
+	* if you install/add/modify things with the wp-cli (`/usr/sbin/wp`) make sure you run the command `[sudo] chown -R www-data:www-data /path/to/wordpress` otherwise you'll probably get file permission errors everywhere.
 * there are two new parameters for you to fill out in ciderpress.conf, `wp_site_admin`, and `wp_site_password`. These control the name of your wordpress admin account and its password for logging in to your wordpress instance. Pretty self-explanatory.  
 * ciderpress_plugin.php is now activated as a part of the install script, instead of just being installed  
 * login-lockdown is installed and activated as a part of the install process. Defaults to blocking an IP for 1 hour after 3 failed logins in 5 minutes or less. This can be edited once you log in to your wordpress instance.  
