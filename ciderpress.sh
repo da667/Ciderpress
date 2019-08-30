@@ -261,60 +261,74 @@ sed -i "s#\$max_upload#$max_upload#" /etc/nginx/sites-available/default &>> $log
 sed -i "s#\$wp_basedir#$wp_basedir#" /etc/nginx/sites-available/default &>> $logfile
 sed -i "s#\$phpver#$phpver#" /etc/nginx/sites-available/default &>> $logfile
 sed -i "s#\$admin_net#$admin_net#" /etc/nginx/sites-available/default &>> $logfile
+#due to how HSTS works, if we ended up setting up a self-signed SSL cert, we need to remove HSTS as a directive in the nginx site config for wordpress, otherwise the site won't work.
+if [[ $use_letsencrypt != "1" ]]; then
+	print_notification "Disabling HSTS due to self-signed SSL cert.."
+	sed -i "s#add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\";#\#add_header Strict-Transport-Security \"max-age=63072000; includeSubDomains; preload\";#" /etc/nginx/sites-available/default
+	error_check 'HSTS reconfiguration'
+	print_notification "If you want to re-enable this later, after getting a regular SSL cert, uncomment line 36 in /etc/ngix/sites-available/default!"
+fi
 error_check 'site config editing'
 sed -i "s#post_max_size = 8M#post_max_size = $max_upload#" /etc/php/$phpver/fpm/php.ini &>> $logfile
 sed -i "s#upload_max_filesize = 2M#upload_max_filesize = $max_upload#" /etc/php/$phpver/fpm/php.ini &>> $logfile
 error_check 'php.ini editing'
 
+########################################
 
-#Grabbing and unzipping the latest wordpress install. Unlike snort.org, they actually have their s**t together and have a "latest.tar.gz" link.
-#Once we grab and extract the tarball, delete it.
-#Why? the tarball is an installer artifact that can fingerprint your installation
+#We'll be downloading and installing wp-cli to /usr/sbin/wp
+#We'll also be using wp-cli to download, configure, and perform the initial install 
+#After configuring wordpress via wp-cli, we'll be adding a special directive to force all core wordpress updates automatically, and another directive to disable the theme and plugin editor to the wp-config.php file.
+#Finally, wp-cli will be used to activate the ciderpress plugin, as well as install/enable login lockdown, and download the google authenticator plugin.
 
-print_status "Grabbing and inflating the latest Wordpress tarball.."
+print_status "Installing wp-cli.."
+cd /usr/local/sbin
+curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar &>> $logfile
+chmod 755 /usr/local/sbin/wp-cli.phar &>> $logfile
+mv /usr/local/sbin/wp-cli.phar /usr/local/sbin/wp &>> $logfile
+wp --info &>> $logfile
+error_check 'wp-cli installation'
+print_notification "location: /usr/sbin/wp"
+
+print_notification "Downloading and install wordpress via wp-cli.."
 dir_check $wp_basedir
 cd $wp_basedir
-wget https://wordpress.org/latest.tar.gz &>> $logfile
-error_check 'wordpress download'
-tar --strip-components=1 -xzvf latest.tar.gz &>> $logfile
-error_check 'wordpress file installation'
-rm -rf latest.tar.gz &>> $logfile
-
-########################################
-
-#Have to modify and configure the wp-config-sample.php file. Here is what needs to be done:
-#Enter the username, password, and database name for the mysql database wordpress will be dumping its schema to
-#adding an option to explicitly ensure that both minor and major core wordpress updates are automatically installed
-#adding in a directive that says if the remote ip address is 127.0.0.1, then the site url and home url is 127.0.0.1
-#this is to fix the fact that wordpress likes to redirect to the public IP address/hostname after logging in.
-#afterwards. we change file permissions to where only www-data user and group can access the wp-config.php file
-
-print_status "Setting up wp-config for first-time use.."
-
-cp $wp_basedir/wp-config-sample.php $wp_basedir/wp-config.php.tmp &>> $logfile
-sed -i "s#database_name_here#$wp_database_name#" $wp_basedir/wp-config.php.tmp &>> $logfile
-sed -i "s#username_here#$wp_db_user#" $wp_basedir/wp-config.php.tmp &>> $logfile
-sed -i "s#password_here#$wp_mysql_password#" $wp_basedir/wp-config.php.tmp &>> $logfile
-echo "//ensuring that wordpress core major and minor updates are AUTOMATICALLY installed" >> $wp_basedir/wp-config.php.tmp
-echo "define( 'WP_AUTO_UPDATE_CORE', true);" >> $wp_basedir/wp-config.php.tmp
-echo "//this is to ensure access to wp-login.php and wp-admin.php if uses stick with the default setting of only allowing localhost to access these directories." >> $wp_basedir/wp-config.php.tmp
-echo "if ($_SERVER['REMOTE_ADDR'] == '127.0.0.1' || $_SERVER['REMOTE_ADDR'] == '::1') {" >> $wp_basedir/wp-config.php.tmp
-echo "    define('WP_SITEURL', 'https://127.0.0.1/');" >> $wp_basedir/wp-config.php.tmp
-echo "    define('WP_HOME', 'https://127.0.0.1/');" >> $wp_basedir/wp-config.php.tmp
-echo "}" >> $wp_basedir/wp-config.php.tmp
-mv $wp_basedir/wp-config.php.tmp $wp_basedir/wp-config.php &>> $logfile
+wp core download --allow-root &>> $logfile
+wp core config --dbhost=127.0.0.1 --dbname=$wp_database_name --dbuser=$wp_db_user --dbpass=$wp_mysql_password --allow-root &>> $logfile
 chmod 660 $wp_basedir/wp-config.php &>> $logfile
-error_check 'wp-config.php setup'
+print_notification "Enabling full auto updates for wordpress core, and disabling theme and plugin file editor via wp-config.php.."
+echo "define( 'WP_AUTO_UPDATE_CORE', true);" >> $wp_basedir/wp-config.php
+echo "define( 'DISALLOW_FILE_EDIT', true );" >> $wp_basedir/wp-config.php
+error_check 'wp-config.php edits'
+wp core install --allow-root --url=$wp_hostname --title="wordpress blog" --admin_name=$wp_site_admin --admin_password=$wp_site_password --admin_email=lolno@lolno.com &>> $logfile
 
 ########################################
 
-#Setting up ciderpress_plugin.php
-#all we're doing is making sure that $wp_basedir/wp-content/plugins exists, and if it doesn't create it and drop the plugin script there.
+#installing and enabling some plugins
+#ciderpress_plugin.php gets installed and activated
+#login-lockdown gets installed and activated
+#google-authenticator gets installed, but not activated, because the user needs to handle that manually.
+#sucuri-scanner also gets installed, but not activated, because the user needs to generate an API key for that.
+#we also delete "hello.php" because its quite literally pointless, other than showing you plugin scaffolding for writing your own plugin.
 
-dir_check $wp_basedir/wp-content/plugins
+cd $wp_basedir/wp-content/plugins
+print_status "deleting hello dolly plugin.."
+rm -rf $wp_basedir/wp-content/plugins/hello.php &>> $logfile
+error_check 'deletion of hello.php'
+
+print_status "installing and activating ciderpress plugin.."
 cp $execdir/ciderpress_plugin.php $wp_basedir/wp-content/plugins &>> $logfile
-error_check 'ciderpress plugin installation'
+wp plugin activate ciderpress_plugin.php --allow-root &>> $logfile
+error_check 'ciderpress plugin installation and activation'
 
+print_status "installing and activating login-lockdown plugin.."
+wp plugin install login-lockdown --allow-root &>> $logfile
+wp plugin activate login-lockdown --allow-root &>> $logfile
+error_check 'login-lockdown plugin installation and activation'
+
+print_status "installing google-authenticator plugin.."
+wp plugin install google-authenticator --allow-root &>> $logfile
+error_check 'google-authenticator plugin installation'
+print_notification "Remember to log in, ACTIVATE this plugin, and add the QR code to your 2FA app of choice (usually this is google authenticator)!"
 ########################################
 
 #set up file permissions to where www-data owns everything in the wordpress installation directory
@@ -392,6 +406,8 @@ else
 fi
 
 print_notification "We done here. I'd highly recommend either deleting or storing the ciderpress.conf file in a safe, secure location, since a lot of important details are stored in this file."
+print_notification "Remember that you have to activate the google authenticator plugin manually. Be sure to log in and do that, because 2FA makes password bruteforcing nigh-impossible"
+print_notification "If you make any changes via wp-cli, remember to chown -R www-data:www-data the directory where you installed wordpress, otherwise you'll probably end up getting file access errors."
 print_status "Rebooting."
 init 6
 exit 0

@@ -60,43 +60,6 @@ server {
          }
     }
 	
-	#location directive for processing php files. 
-	
-	location ~ \.php$ {
-		include snippets/fastcgi-php.conf;
-		include fastcgi_params;
-		fastcgi_pass unix:/run/php/php$phpver-fpm.sock;
-		fastcgi_param HTTPS on;
-		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-		fastcgi_intercept_errors on;
-	}
-	
-	#location directive for image and CSS files to ensure that they are cached for the maximum amount of time possible.
-	location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
-		expires max;
-	}
-	
-	#deny access to wordpress admin functions except from trusted networks/hosts
-	location /wp-admin {
-		try_files $uri $uri/ =404;
-        location ~ \.php$ {
-			include snippets/fastcgi-php.conf;
-            include fastcgi_params;
-            fastcgi_pass unix:/run/php/php7.2-fpm.sock;
-            fastcgi_param HTTPS on;
-            fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
-            fastcgi_intercept_errors on;
-        }
-                allow $admin_net;
-                deny all;
-    }
-
-#	location ~* /wp-admin {
-#		try_files $uri $uri/ =404;
-#		allow $admin_net;
-#		deny all;
-#	}
-	
 	#deny CGI to other script types that wordpress does not utilize to function
 	location ~* \.(pl|cgi|py|rb|sh|lua)\$ {
 			return 444;
@@ -106,6 +69,8 @@ server {
 	#anyone specifically requesting any file beginning with a period ("."), wp-config.php, license.txt, readme.html, xmlrpc.php, or wp-trackback.php
 	#anyone attempting to access wp-admin/includes wp-includes/theme-compat/, wp-includes/js/tinymce/langs/*.php, /wp-json, wp-includes/*.php
 	#set the wp-includes and wp-content directories for internal server use only.
+	#I have no way of knowing why, but I think the denies for filetypes need to be specified before specifying the location block for PHP files to be passed.
+	#I think if this block exists AFTER the php/fastCGI location block, that it effectively gets ignored
 	
 	location ~ /(\.|wp-config.php|readme.html|license.txt|xmlrpc.php|wp-trackback.php|wp-cron.php) { deny all; }
 	
@@ -130,5 +95,21 @@ server {
 	location ~* ^/wp-content/uploads/.*.(html|htm|shtm|php|pl|py|pyc|jsp|asp|cgi|rb|sh|swf|lua)$ {
 		types { }
 		default_type text/plain;
+	}
+	
+	#location directive for processing php files. 
+	
+	location ~ \.php$ {
+		include snippets/fastcgi-php.conf;
+		include fastcgi_params;
+		fastcgi_pass unix:/run/php/php$phpver-fpm.sock;
+		fastcgi_param HTTPS on;
+		fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+		fastcgi_intercept_errors on;
+	}
+	
+	#location directive for image and CSS files to ensure that they are cached for the maximum amount of time possible.
+	location ~* \.(js|css|png|jpg|jpeg|gif|ico)$ {
+		expires max;
 	}
 }

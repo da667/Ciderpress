@@ -26,7 +26,6 @@ Personal preference, mainly.
 	* hostname for the instance (important if you plan on using letsencrypt -- more on that later)
 	* whether or not you want to use LetsEncrypt or a self-signed SSL cert
 	* maximum file upload size
-	* a single IP address or subnet that is authorized to access wp-admin
 	* enabling weekly patching/system reboot, weekly backups and a weekly job to trim backups older than 90 days
 
 * running `mysql_secure_installation` queries to ensure test users and instances are properly removed  
@@ -59,9 +58,7 @@ Personal preference, mainly.
 * Prevents the execution of several commonly abused scripting extension in /wp-content/uploads (html|htm|shtm|php|pl|py|pyc|jsp|asp|cgi|rb|sh|swf|lua) by setting their default MIME type to text/plain
 * Makes some customizations to wp-config.php, specifically:
 	* Enforces automatic wordpress core updates. Yes, even major updates.
-	* Adds a block that sets the `WP_SITEURL` and `WP_HOME` to `https://127.0.0.1` if the `REMOTE_ADDR` is `127.0.0.1`
-		* This is specifically for limiting access to wp-admin (more on this in a moment)
-* Installs a custom wordpress plugin `ciderpress_plugin.php` that performs several hardening tasks:
+* Installs and enables a custom wordpress plugin `ciderpress_plugin.php` that performs several hardening tasks:
 	* Disables meta tags in site source code to make fingerprinting harder
 	* Disables feed links in the site source code
 	* Disables wordpress JSON (wp-json)
@@ -70,6 +67,8 @@ Personal preference, mainly.
 	* Attempts to unset the X-Pingback header
 	* Attempts to unset the X-Redirected-By header
 	* Forces automatic updates for wordpress plugins and themes
+* Installs and enables the login-lockdown plugin to limit brute-force attempts
+* Installs (but doesn't enable) the google-authenticator plugin for enabling two-factor authentication for your wordpress accounts
 * (Optionally) installs some scripts for system housekeeping. These scripts include:
 	* `updater`, which as the name implies, pulls the latest updates and reboots the system
 	* `wp_bkup`, makes a copy of the wordpress install directory, and a mysqldump of the database, creates a .tar.bz2 file of this data, and dumps it to /opt/bkups, then deletes the original files.
@@ -92,22 +91,12 @@ Yeah, this goes against security advice security professionals typically give yo
 
 	2. You might notice theres a section that involves using letsencrypt for a free SSL cert. If you want to use letsencrypt there are some prerequisites for that. First, you need to ensure that the api can reach your web server on port 80/tcp since we'll be using the challenge/response method for getting our cert. That means poking holes in your firewall. Next, you need to ensure that your webserver has a public IP address, and a domain name that letsencrypt can resolve in order to get your SSL cert.
 Freenom offers free hostnames for up to a year for a few TLDs. I have no idea if letsencrypt will work for dynamic DNS domains, but its something you are welcome to try. Good luck. OTHERWISE, the script will generate a self-signed SSL certificate for use on your website, if you modify the config file to do so. Yeah, web browsers will give you sad faces when you try to browse to it, and crypto nerds will scream bloody murder, but this is a Wendys, sir.
-	3. You see that variable `admin_net`? That is the IP address you need to run the wordpress setup from, once this script completes by default this is set to 127.0.0.1.  You're probably asking 
-		>Well, how do I run first-time setup? Especially on a headless linux server? 
-
-		Use SSH tunnels. You'll need to have SSHD installed on your web server and some sort of an SSH client that supports tunneling to do this.  
-        
-        Linux/OSX/Windows[10] ssh client: ssh -D 8080 [webserver IP here], log into the SSH service on your web server.
-Set 127.0.0.1:8080 as your browser's SOCKS5 proxy, connect to https://127.0.0.1 and enjoy.  
-
-		Windows putty: Connections > SSH > Tunnels > source port:8080, Destination [no ip address], dynamic, auto > click Add, save the session if desired, and connect to the web server's SSH service.
-Set 127.0.0.1:8080 as your browser's SOCKS5 proxy, connect to https://127.0.0.1 and enjoy.
-
-3. The script has to be run as root, or via sudo privs because of all things we'll be doing that requires root privs (e.g. package installation, modifying file permissions, etc.)
+	3. The variable `wp_hostname` is very important. Make sure that this is set to a fully qualified domain name that your clients can resolve, otherwise your wordpress install will be horribly broken. You can also try setting this to an IP address if you don't want to bother with DNS, but I haven't tested it, so I have no idea if that'd work. At the very least, if you did this, you will NOT be able to get a letsencrypt ssl cert. The script has to be run as root, or via sudo privs because of all things we'll be doing that requires root privs (e.g. package installation, modifying file permissions, etc.)
 4. `bash ciderpress.sh` or `sudo bash ciderpress.sh` should be enough to get the ball rolling. The script keeps a log of the output of all the commands it runs in /var/log/ciderpress_install.log. This file can be used to help troubleshoot failures if the script bombs out.
 	1. theres a portion of the script that generates a `dhparam.pem` file. The script warns you that it'll take some time to do. Its no joke. Its gonna take about 15 or so minutes on a moderately powerful system, and the CPU is gonna kick and scream the entire time. If you wanna make sure that the script is still running, open up another terminal session (e.g. second SSH session, etc.) and run the command tail -f /var/log/ciderpress_install.log
 5. Your system WILL reboot as a part of this script.
-	1. Please be aware that after going through wp-admin/install.php, you'll need to visit the wordpress dashboard and activate the ciderpress plugin manually
+	1. This script installs several plugins and enables a few of them for you automatically. However, one of these plugins, google-authenticator needs to be activated manually. This is because you need to login to the wordpress console to set up  two-factor authentication for your admin user (and other users you might add later).
+		1. Make sure that your web server can keep accurate time. 2FA relies heavily on time for your server being relatively accurate. Be aware that if you are running wordpress in a VM and you revert a snapshot, you might need to update the system clock/time. Consider looking into NTP or the hwlock -s command.
 
 ## References:
 * Suppress nginx version info: https://www.tecmint.com/hide-nginx-server-version-in-linux/  
@@ -117,9 +106,19 @@ Set 127.0.0.1:8080 as your browser's SOCKS5 proxy, connect to https://127.0.0.1 
 * Additional nginx hardening configs: https://gist.github.com/julienbourdeau/a39acf5862600318bdd0  
 * wordpress plugin hardening: https://ted.do/category/wordpress/  
 * more wordpress plugin hardening: https://wp-mix.com/wordpress-disable-rest-api-header-links/  
+* disabling access to the plugin and theme editor: https://www.wpbeginner.com/wp-tutorials/how-to-disable-theme-and-plugin-editors-from-wordpress-admin-panel/
 * enforcing auto updates, even on major releases, themes and plugins: https://wordpress.org/support/article/configuring-automatic-background-updates/  
-* SSH dynamic tunnels/SOCKS5 proxying on Linux/Unix systems: https://www.tecmint.com/create-ssh-tunneling-port-forwarding-in-linux/   
-* SSH dynamic tunnels/SOCKS5 proxying with putty: https://blog.devolutions.net/2017/4/how-to-configure-an-ssh-tunnel-on-putty  
-* Access wp-admin via localhost/dynamic SSH tunnel: https://wordpress.stackexchange.com/questions/186272/how-to-deal-with-wordpress-on-localhost  
 * Are you wondering why we installed rng-tools? Its because it significantly improves RNG collection on VMs, and makes the dhparam.pem generation significantly faster on virtual machines: https://www.cyberciti.biz/open-source/debian-ubuntu-centos-linux-setup-additional-entropy-for-server-using-aveged-rng-tools-utils/  
-* Why didn't we generate salts and keys in wp-config.php? Because wordpress will generate them on its own on first setup.
+* How to configure the google-authenticator plugin: https://wordpress.org/plugins/google-authenticator/#installation
+* SSL configuration for nginx: https://cipherli.st
+
+## Patch Notes:
+### 2019-08-30
+* Decided that attempting to blog access to wp-admin via IP address wasn't the way forward(tm). As in, I thought it worked fine, but it was one of those "Works great on my machine!" moments they tell you about in cyber school. You don't think it'll happen until it happens to you.  
+* wp-cli is a thing that exists and is insanely useful for handling various aspects of installing and configuring wordpress. I've switched the script over to using wp-cli to download, install, perform initial configuration, enable and install plugins as a part of the script  
+* there are two new parameters for you to fill out in ciderpress.conf, wp_site_admin, and wp_site_password. These control the name of your wordpress admin account and its password for logging in to your wordpress instance. Pretty self-explanatory.  
+* ciderpress_plugin.php is now activated as a part of the install script, instead of just being installed  
+* login-lockdown is installed and activated as a part of the install process. Defaults to blocking an IP for 1 hour after 3 failed logins in 5 minutes or less. This can be edited once you log in to your wordpress instance.  
+* google-authenticator is installed as a part of the script. login to wp-admin to activate it and configure your admin account for two-factor auth: https://wordpress.org/plugins/google-authenticator/#installation  
+* HSTS doesn't work with self-signed certs, so if you opted to use a self-signed cert, we disable that configuration setting. If you change this later to a non self-signed cert, uncomment line 36 in /etc/nginx/sites-available/default  
+* Added in a hardening customization to wp-config.php that disables the plugin and theme editor in the admin console.
