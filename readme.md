@@ -125,3 +125,4 @@ Freenom offers free hostnames for up to a year for a few TLDs. I have no idea if
 * google-authenticator is installed as a part of the script. login to wp-admin to activate it and configure your admin account for two-factor auth: https://wordpress.org/plugins/google-authenticator/#installation  
 * HSTS doesn't work with self-signed certs, so if you opted to use a self-signed cert, we disable that configuration setting. If you change this later to a non self-signed cert, uncomment line 36 in /etc/nginx/sites-available/default  
 * Added in a hardening customization to wp-config.php that disables the plugin and theme editor in the admin console.
+* changed some of the documentation to reflect how important the `wp_hostname` variable is. This needs to be a domain name that clients you want to be able to browse this site can resolve. You can try putting in an IP address in here instead if you don't wanna use DNS at all, but I have NOT tested that. Yolo.
