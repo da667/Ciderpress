@@ -23,6 +23,7 @@ Personal preference, mainly.
 	* root directory wordpress will be installed and served from
 	* wordpress database name
 	* wordpress database username and password
+	* wordpress administrator username and password
 	* hostname for the instance (important if you plan on using letsencrypt -- more on that later)
 	* whether or not you want to use LetsEncrypt or a self-signed SSL cert
 	* maximum file upload size
