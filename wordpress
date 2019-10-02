@@ -86,7 +86,7 @@ server {
 	
 	location ~* wp-includes/.*\.php$ { deny all; }
 	
-	location ~* /wp-includes/ { internal; }
+	#location ~* /wp-includes/ { internal; }
 	
 	location /wp-content/ { internal; }
 

@@ -53,7 +53,7 @@ Personal preference, mainly.
 	* wp-admin/includes
 	* wp-includes/theme-compat/
 	* wp-includes/js/tinymce/langs/*.php
-	* configures /wp-includes/ and /wp-content/ to `internal` only
+	* configures /wp-content/ to `internal` only
 
 * Prevents the execution of common CGI script file extensions (pl|cgi|py|rb|sh|lua)
 * Prevents the execution of several commonly abused scripting extension in /wp-content/uploads (html|htm|shtm|php|pl|py|pyc|jsp|asp|cgi|rb|sh|swf|lua) by setting their default MIME type to text/plain
@@ -127,3 +127,5 @@ Freenom offers free hostnames for up to a year for a few TLDs. I have no idea if
 * HSTS doesn't work with self-signed certs, so if you opted to use a self-signed cert, we disable that configuration setting. If you change this later to a non self-signed cert, uncomment line 36 in /etc/nginx/sites-available/default  
 * Added in a hardening customization to wp-config.php that disables the plugin and theme editor in the admin console.
 * changed some of the documentation to reflect how important the `wp_hostname` variable is. This needs to be a domain name that clients you want to be able to browse this site can resolve. You can try putting in an IP address in here instead if you don't wanna use DNS at all, but I have NOT tested that. Yolo.
+### 2019-10-02
+* discovered that `location ~* /wp-includes/ {internal};` breaks both the theme editor as well as the blog post editor. If you want to re-enable this, uncomment line 89 in `/etc/nginx/sites-available/default`.
